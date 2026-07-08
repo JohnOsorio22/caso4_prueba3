@@ -106,3 +106,19 @@ curl -X POST http://localhost:28000/api/v1/paquetes \
     "responsable": "Juan Pérez",
     "vehiculoId": 1
   }'
+Actualizar estado del paquete
+bash
+curl -X PUT http://localhost:28000/api/v1/paquetes/PKT-001 \
+  -H "Content-Type: application/json" \
+  -d '{
+    "estado": "ENTREGANDO"
+  }'
+Consultar historial (Caja Negra de Viaje)
+bash
+curl -X GET http://localhost:28000/api/v1/paquetes/PKT-001/historial
+Consultar vehículo desde Flota (Proxy)
+bash
+curl -X GET http://localhost:28000/api/v1/flota/vehiculos/1
+Verificar comunicación con Flota
+bash
+curl -X GET http://localhost:28000/api/v1/diagnostico/flota/1

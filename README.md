@@ -1,6 +1,6 @@
-# 📦 FastTrack Courier - Microservicio de Rastreo Logístico
+# FastTrack Courier - Microservicio de Rastreo Logístico
 
-## 📋 Descripción del Proyecto
+## Descripción del Proyecto
 
 **FastTrack Courier - Rastreo Logístico** es un microservicio responsable de la gestión y rastreo de paquetes en tránsito para la empresa logística FastTrack Courier. Este servicio implementa una **Caja Negra de Viaje** que registra cada evento de forma inalterable para auditoría completa.
 
@@ -13,7 +13,7 @@ El microservicio resuelve la necesidad de:
 
 ---
 
-## 👥 Equipo de Desarrollo
+## Equipo de Desarrollo
 
 | Nombre | Rol |
 |--------|-----|
@@ -23,7 +23,7 @@ El microservicio resuelve la necesidad de:
 
 ---
 
-## 🏗️ Arquitectura del Microservicio
+## Arquitectura del Microservicio
 ┌─────────────────────────────────────────────────────────────────┐
 │ Rastreo Logístico (Puerto 28000) │
 ├─────────────────────────────────────────────────────────────────┤
@@ -53,7 +53,7 @@ Este microservicio se comunica con el **Microservicio de Gestión de Flota** (pu
 
 ---
 
-## 📚 Documentación Swagger
+## Documentación Swagger
 
 ### Local
 - **Swagger UI**: [http://localhost:28000/swagger-ui.html](http://localhost:28000/swagger-ui.html)
@@ -65,7 +65,7 @@ Este microservicio se comunica con el **Microservicio de Gestión de Flota** (pu
 
 ---
 
-## 🛣️ Rutas Principales (Endpoints)
+## Rutas Principales (Endpoints)
 
 ### Gestión de Paquetes
 

@@ -22,7 +22,6 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
-
 @ExtendWith(MockitoExtension.class)
 class PaqueteServiceTest {
 
@@ -48,7 +47,9 @@ class PaqueteServiceTest {
         paqueteBase.setVehiculoId(1L);
     }
 
-
+    // ============================================================
+    // TESTS PARA crear()
+    // ============================================================
 
     @Test
     @DisplayName("crear() – debe asignar estado EN_RUTA y activo=true")
@@ -94,9 +95,24 @@ class PaqueteServiceTest {
         verify(auditLogRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("crear() – debe registrar el usuario 'SISTEMA' en el AuditLog por defecto")
+    void crear_debeRegistrarUsuarioSistemaEnAudit() {
+        when(paqueteRepository.existsById("PKT-001")).thenReturn(false);
+        when(paqueteRepository.save(any(Paquete.class))).thenReturn(paqueteBase);
 
+        paqueteService.crear(paqueteBase);
 
+        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository).save(captor.capture());
 
+        AuditLog log = captor.getValue();
+        assertThat(log.getUsuario()).isEqualTo("SISTEMA");
+    }
+
+    // ============================================================
+    // TESTS PARA listar() y entregando()
+    // ============================================================
 
     @Test
     @DisplayName("listar() – debe retornar solo paquetes activos")
@@ -122,6 +138,9 @@ class PaqueteServiceTest {
         assertThat(resultado.get(0).getEstado()).isEqualTo("ENTREGANDO");
     }
 
+    // ============================================================
+    // TESTS PARA actualizar()
+    // ============================================================
 
     @Test
     @DisplayName("actualizar() – debe cambiar estado y registrar AuditLog CAMBIO_ESTADO")
@@ -192,6 +211,127 @@ class PaqueteServiceTest {
                 .hasMessageContaining("eliminado");
     }
 
+    @Test
+    @DisplayName("actualizar() – debe validar transiciones de estado inválidas (EN_RUTA → ENTREGADO)")
+    void actualizar_debeValidarTransicionesInvalidas() {
+        when(paqueteRepository.findById("PKT-001")).thenReturn(Optional.of(paqueteBase));
+
+        Paquete cambio = new Paquete();
+        cambio.setEstado("ENTREGADO");
+
+        assertThatThrownBy(() -> paqueteService.actualizar("PKT-001", cambio))
+                .isInstanceOf(LogisticaException.class)
+                .hasMessageContaining("Transición inválida");
+    }
+
+    @Test
+    @DisplayName("actualizar() – debe permitir transición ENTREGANDO → ENTREGADO")
+    void actualizar_debePermitirTransicionEntregandoAEntregado() {
+        paqueteBase.setEstado("ENTREGANDO");
+        when(paqueteRepository.findById("PKT-001")).thenReturn(Optional.of(paqueteBase));
+
+        Paquete cambio = new Paquete();
+        cambio.setEstado("ENTREGADO");
+
+        Paquete actualizado = new Paquete();
+        actualizado.setNumeroSeguimiento("PKT-001");
+        actualizado.setEstado("ENTREGADO");
+        actualizado.setActivo(true);
+        when(paqueteRepository.save(any(Paquete.class))).thenReturn(actualizado);
+
+        Optional<Paquete> resultado = paqueteService.actualizar("PKT-001", cambio);
+
+        assertThat(resultado).isPresent();
+        assertThat(resultado.get().getEstado()).isEqualTo("ENTREGADO");
+    }
+
+    @Test
+    @DisplayName("actualizar() – debe permitir mantener el mismo estado (no hacer nada)")
+    void actualizar_debePermitirMismoEstado() {
+        when(paqueteRepository.findById("PKT-001")).thenReturn(Optional.of(paqueteBase));
+
+        Paquete cambio = new Paquete();
+        cambio.setEstado("EN_RUTA");
+
+        when(paqueteRepository.save(any(Paquete.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Optional<Paquete> resultado = paqueteService.actualizar("PKT-001", cambio);
+
+        assertThat(resultado).isPresent();
+        assertThat(resultado.get().getEstado()).isEqualTo("EN_RUTA");
+        verify(auditLogRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("actualizar() – debe permitir actualizar dirección y responsable junto con el estado")
+    void actualizar_debePermitirActualizarCamposAdicionales() {
+        when(paqueteRepository.findById("PKT-001")).thenReturn(Optional.of(paqueteBase));
+
+        Paquete cambio = new Paquete();
+        cambio.setEstado("ENTREGANDO");
+        cambio.setDireccionEntrega("Nueva Dirección 456");
+        cambio.setResponsable("María González");
+
+        Paquete actualizado = new Paquete();
+        actualizado.setNumeroSeguimiento("PKT-001");
+        actualizado.setEstado("ENTREGANDO");
+        actualizado.setDireccionEntrega("Nueva Dirección 456");
+        actualizado.setResponsable("María González");
+        actualizado.setActivo(true);
+        actualizado.setVehiculoId(1L);
+
+        when(paqueteRepository.save(any(Paquete.class))).thenReturn(actualizado);
+
+        Optional<Paquete> resultado = paqueteService.actualizar("PKT-001", cambio);
+
+        assertThat(resultado).isPresent();
+        assertThat(resultado.get().getDireccionEntrega()).isEqualTo("Nueva Dirección 456");
+        assertThat(resultado.get().getResponsable()).isEqualTo("María González");
+    }
+
+    @Test
+    @DisplayName("actualizar() – debe permitir cambiar el vehículo asignado")
+    void actualizar_debePermitirCambiarVehiculo() {
+        when(paqueteRepository.findById("PKT-001")).thenReturn(Optional.of(paqueteBase));
+
+        Paquete cambio = new Paquete();
+        cambio.setVehiculoId(5L);
+
+        when(paqueteRepository.save(any(Paquete.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        Optional<Paquete> resultado = paqueteService.actualizar("PKT-001", cambio);
+
+        assertThat(resultado).isPresent();
+        assertThat(resultado.get().getVehiculoId()).isEqualTo(5L);
+    }
+
+    @Test
+    @DisplayName("actualizar() – debe registrar el usuario 'SISTEMA' en el AuditLog al cambiar estado")
+    void actualizar_debeRegistrarUsuarioSistemaEnAuditLog() {
+        when(paqueteRepository.findById("PKT-001")).thenReturn(Optional.of(paqueteBase));
+
+        Paquete cambio = new Paquete();
+        cambio.setEstado("ENTREGANDO");
+
+        Paquete actualizado = new Paquete();
+        actualizado.setNumeroSeguimiento("PKT-001");
+        actualizado.setEstado("ENTREGANDO");
+        actualizado.setActivo(true);
+        when(paqueteRepository.save(any(Paquete.class))).thenReturn(actualizado);
+
+        paqueteService.actualizar("PKT-001", cambio);
+
+        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository).save(captor.capture());
+
+        AuditLog log = captor.getValue();
+        assertThat(log.getUsuario()).isEqualTo("SISTEMA");
+        assertThat(log.getTipoMovimiento()).isEqualTo("CAMBIO_ESTADO");
+    }
+
+    // ============================================================
+    // TESTS PARA eliminar()
+    // ============================================================
 
     @Test
     @DisplayName("eliminar() – debe marcar activo=false y registrar AuditLog EGRESO_SOFT_DELETE")
@@ -223,6 +363,25 @@ class PaqueteServiceTest {
         verify(auditLogRepository, never()).save(any());
     }
 
+    @Test
+    @DisplayName("eliminar() – debe registrar el usuario 'SISTEMA' en AuditLog")
+    void eliminar_debeRegistrarUsuarioEnAuditLog() {
+        when(paqueteRepository.findById("PKT-001")).thenReturn(Optional.of(paqueteBase));
+        when(paqueteRepository.save(any(Paquete.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        paqueteService.eliminar("PKT-001");
+
+        ArgumentCaptor<AuditLog> captor = ArgumentCaptor.forClass(AuditLog.class);
+        verify(auditLogRepository).save(captor.capture());
+
+        AuditLog log = captor.getValue();
+        assertThat(log.getUsuario()).isEqualTo("SISTEMA");
+        assertThat(log.getTipoMovimiento()).isEqualTo("EGRESO_SOFT_DELETE");
+    }
+
+    // ============================================================
+    // TESTS PARA obtenerHistorial()
+    // ============================================================
 
     @Test
     @DisplayName("obtenerHistorial() – debe retornar lista de AuditLogs del paquete")
@@ -246,5 +405,17 @@ class PaqueteServiceTest {
         assertThatThrownBy(() -> paqueteService.obtenerHistorial("PKT-999"))
                 .isInstanceOf(LogisticaException.class)
                 .hasMessageContaining("PKT-999");
+    }
+
+    @Test
+    @DisplayName("obtenerHistorial() – debe retornar historial vacío si no hay eventos")
+    void obtenerHistorial_debeRetornarVacioSiNoHayEventos() {
+        when(paqueteRepository.existsById("PKT-001")).thenReturn(true);
+        when(auditLogRepository.findByNumeroSeguimientoOrderByFechaHoraAsc("PKT-001"))
+                .thenReturn(List.of());
+
+        List<AuditLog> historial = paqueteService.obtenerHistorial("PKT-001");
+
+        assertThat(historial).isEmpty();
     }
 }

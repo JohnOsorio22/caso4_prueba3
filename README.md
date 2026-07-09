@@ -18,8 +18,8 @@ El microservicio resuelve la necesidad de:
 | Nombre | Rol |
 |--------|-----|
 | Sebastián Saavedra | Desarrollador Full Stack |
-| [Nombre Compañero 1] | Desarrollador Backend |
-| [Nombre Compañero 2] | Desarrollador Backend |
+| Benjamin Benavides| Desarrollador Backend |
+| John Osorio | Desarrollador Backend |
 
 ---
 
